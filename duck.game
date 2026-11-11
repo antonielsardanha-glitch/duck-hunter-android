@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Duck Hunter: Peak Edition</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Fredoka One -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712;
+      color: #f8fafc;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .font-game {
+      font-family: 'Fredoka One', cursive, sans-serif;
+    }
+    canvas {
+      image-rendering: pixelated;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+    }
+    /* Custom Scrollbar styling for modals */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3b82f6;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #60a5fa;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.9; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.03); }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 1.5s infinite ease-in-out;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-slate-950 select-none">
+
+  <!-- Main Viewport Shell -->
+  <div id="game-container" class="relative w-full h-full md:max-w-6xl md:h-auto md:aspect-video bg-slate-900 md:rounded-3xl overflow-hidden border-0 md:border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+
+    <!-- CANVAS GAMEPLAY CANVAS -->
+    <canvas id="gameCanvas" width="960" height="540" class="w-full h-full block cursor-crosshair"></canvas>
+
+    <!-- TOUCH CONTROLS OVERLAY (Mobile Touch Overlay) -->
+    <div id="touch-controls" class="absolute inset-0 pointer-events-none z-20 flex justify-between p-4">
+      <!-- Movement Touch Zone (Left Screen) -->
+      <div id="touch-move-zone" class="w-1/2 h-full pointer-events-auto"></div>
+      
+      <!-- Aim & Actions Zone (Right Screen) -->
+      <div id="touch-action-zone" class="w-1/2 h-full pointer-events-auto relative flex flex-col justify-end items-end gap-3 p-2">
+        <div class="flex items-center gap-3 mb-24 md:mb-6">
+          <!-- Reload Touch Button -->
+          <button id="btn-touch-reload" class="w-14 h-14 bg-slate-900/80 backdrop-blur-md border border-amber-500/60 active:bg-amber-600 rounded-full flex items-center justify-center text-xl shadow-xl active:scale-90 transition">
+            🔄
+          </button>
+          <!-- Dash Touch Button -->
+          <button id="btn-touch-dash" class="w-16 h-16 bg-cyan-900/80 backdrop-blur-md border border-cyan-400 active:bg-cyan-500 rounded-full flex items-center justify-center text-2xl shadow-2xl active:scale-90 transition">
+            ⚡
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEADS UP DISPLAY (HUD) LAYER -->
+    <div id="hud-layer" class="hidden absolute inset-0 pointer-events-none p-3 md:p-5 flex flex-col justify-between z-10">
+      
+      <!-- Top HUD Header -->
+      <div class="flex justify-between items-start gap-2 md:gap-4">
+        <!-- Player Stats (HP & XP) -->
+        <div class="flex flex-col gap-1.5 w-44 md:w-64">
+          <!-- Health Bar -->
+          <div class="glass-panel p-2 rounded-2xl shadow-lg flex flex-col gap-1">
+            <div class="flex justify-between items-center text-[10px] md:text-xs font-bold text-slate-200">
+              <span class="flex items-center gap-1"><span class="text-red-500">❤️</span> VIDA</span>
+              <span id="hud-hp-text">100 / 100</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-3 md:h-4 overflow-hidden p-0.5 border border-slate-700/60">
+              <div id="hud-hp-bar" class="bg-gradient-to-r from-red-600 via-rose-500 to-emerald-400 h-full rounded-full transition-all duration-200" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- XP / Level Bar -->
+          <div class="glass-panel p-1.5 md:p-2 rounded-2xl shadow-lg flex flex-col gap-1">
+            <div class="flex justify-between items-center text-[10px] md:text-xs font-bold text-slate-200">
+              <span class="flex items-center gap-1 text-cyan-400">⚡ NÍVEL <span id="hud-level-num" class="text-white">1</span></span>
+              <span id="hud-xp-text" class="text-cyan-300">0 / 100 XP</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 md:h-2.5 overflow-hidden p-0.5 border border-slate-700/60">
+              <div id="hud-xp-bar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-150" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center HUD: Boss Bar OR Stage/Wave Tracker & Biome Title -->
+        <div class="flex flex-col items-center flex-1 max-w-xs md:max-w-md">
+          <!-- Boss Health Bar -->
+          <div id="boss-hud-container" class="hidden w-full glass-panel p-2.5 md:p-3 rounded-2xl border-red-500/70 shadow-2xl animate-pulse-glow">
+            <div class="flex justify-between items-center mb-1">
+              <span id="boss-hud-name" class="font-game text-red-400 tracking-wider text-xs md:text-sm">KING DUCK</span>
+              <span id="boss-hud-hp-text" class="font-mono text-[10px] md:text-xs font-bold text-red-200">1000 / 1000</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-3.5 md:h-4.5 overflow-hidden border border-red-900">
+              <div id="boss-hud-bar" class="bg-gradient-to-r from-red-600 via-amber-500 to-rose-500 h-full rounded-full transition-all duration-150" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Standard Stage & Wave Box -->
+          <div id="wave-hud-info" class="glass-panel px-4 md:px-6 py-2 rounded-2xl shadow-xl flex items-center gap-3 md:gap-5 border-slate-700/80">
+            <div class="text-center">
+              <div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-widest">BIOMA</div>
+              <div id="hud-biome-name" class="font-game text-xs md:text-sm text-emerald-400">FLORESTA</div>
+            </div>
+            <div class="h-5 md:h-7 w-px bg-slate-700"></div>
+            <div class="text-center">
+              <div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-widest">FASE</div>
+              <div id="hud-stage-num" class="font-game text-sm md:text-lg text-amber-300">1</div>
+            </div>
+            <div class="h-5 md:h-7 w-px bg-slate-700"></div>
+            <div class="text-center">
+              <div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-widest">ONDA</div>
+              <div id="hud-wave-num" class="font-game text-sm md:text-lg text-cyan-400">1/3</div>
+            </div>
+            <div class="h-5 md:h-7 w-px bg-slate-700"></div>
+            <div class="text-center">
+              <div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-widest">PATOS</div>
+              <div id="hud-enemies-count" class="font-game text-sm md:text-lg text-rose-400">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right HUD Side: Coins & Pause -->
+        <div class="flex items-start gap-2 md:gap-3">
+          <div class="glass-panel px-3.5 md:px-4 py-2 rounded-2xl border-amber-500/40 shadow-xl flex items-center gap-2">
+            <span class="text-base md:text-xl">🪙</span>
+            <span id="hud-coins" class="font-game text-sm md:text-lg text-amber-300">0</span>
+          </div>
+
+          <button id="btn-pause-hud" class="pointer-events-auto glass-panel hover:bg-slate-800 p-2 md:p-2.5 rounded-2xl border-slate-700 text-white transition active:scale-95 shadow-xl">
+            ⏸️
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom HUD: Relics & Weapon Ammo Slot -->
+      <div class="flex justify-between items-end">
+        <!-- Equipped Relics Display -->
+        <div class="flex flex-col gap-1">
+          <div class="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">RELÍQUIAS ATIVAS</div>
+          <div id="relics-container" class="flex items-center gap-2 glass-panel p-2 rounded-2xl border-slate-800 min-w-[120px] min-h-[44px]">
+            <span class="text-[10px] md:text-xs text-slate-500 italic px-2">Nenhuma relíquia</span>
+          </div>
+        </div>
+
+        <!-- Active Weapon & Ammo HUD -->
+        <div class="flex items-center gap-3 md:gap-4">
+          <div id="dash-indicator" class="hidden md:flex glass-panel px-3.5 py-2 rounded-2xl border-cyan-500/50 items-center gap-2 text-xs font-bold text-cyan-300 shadow-xl">
+            <span class="text-base">⚡</span>
+            <span id="dash-status-text">ESQUIVA [ESPAÇO]</span>
+          </div>
+
+          <div class="glass-panel p-2.5 md:p-3.5 rounded-2xl border-slate-700 shadow-2xl flex items-center gap-3">
+            <div id="hud-weapon-icon" class="w-10 h-10 md:w-13 md:h-13 bg-slate-800 rounded-xl flex items-center justify-center text-xl md:text-2xl border border-slate-600">
+              🔫
+            </div>
+            <div>
+              <div id="hud-weapon-name" class="font-game text-xs md:text-sm text-yellow-400">PISTOLA</div>
+              <div class="flex items-baseline gap-1">
+                <span id="hud-ammo-current" class="font-game text-base md:text-2xl text-white">12</span>
+                <span class="text-slate-500 text-xs">/</span>
+                <span id="hud-ammo-max" class="text-slate-400 font-semibold text-[10px] md:text-xs">12</span>
+              </div>
+            </div>
+            <div id="reload-spinner" class="hidden text-amber-400 font-bold text-xs animate-spin ml-1">
+              🔄
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN MENU OVERLAY -->
+    <div id="menu-screen" class="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center z-30 p-6 text-center">
+      <div class="relative mb-2">
+        <span class="text-6xl md:text-8xl drop-shadow-2xl">🦆🎯</span>
+      </div>
+      <h1 class="font-game text-4xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-emerald-400 drop-shadow-2xl mb-1 tracking-wide">
+        DUCK HUNTER
+      </h1>
+      <div class="font-game text-cyan-400 tracking-widest text-xs md:text-sm mb-6 bg-cyan-950/80 px-4 py-1.5 rounded-full border border-cyan-800/80 shadow-inner">
+        PEAK EDITION • SURVIVAL & PROGRESSION
+      </div>
+
+      <p class="text-slate-300 max-w-lg text-xs md:text-sm mb-8 leading-relaxed">
+        Elimine revoadas de patos mutantes, sobreviva a biomas hostis, derrote chefes colossais e construa combinações devastadoras de cartas e relíquias!
+      </p>
+
+      <!-- Menu Action Buttons Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-md mb-8">
+        <button id="btn-start" class="font-game py-4 px-6 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-base md:text-lg rounded-2xl shadow-xl shadow-emerald-500/20 transform hover:-translate-y-0.5 active:translate-y-0 transition">
+          JOGAR AGORA
+        </button>
+        <button id="btn-open-shop" class="font-game py-4 px-6 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 text-base md:text-lg rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
+          <span>LOJA</span> 🛒
+        </button>
+        <button id="btn-open-achievements" class="font-game py-4 px-6 bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/40 text-base md:text-lg rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
+          <span>CONQUISTAS</span> 🏆
+        </button>
+      </div>
+
+      <!-- High Score & Permanent Save Stats Bar -->
+      <div class="flex flex-wrap justify-center gap-4 md:gap-6 text-[10px] md:text-xs text-slate-400 bg-slate-950/80 px-6 py-3 rounded-2xl border border-slate-800 shadow-inner">
+        <div>RECORDE: <span id="menu-highscore" class="font-game text-yellow-400 text-xs md:text-sm">0</span> ABATES</div>
+        <div class="w-px bg-slate-800 hidden sm:block"></div>
+        <div>MAIOR FASE: <span id="menu-maxstage" class="font-game text-cyan-400 text-xs md:text-sm">1</span></div>
+        <div class="w-px bg-slate-800 hidden sm:block"></div>
+        <div>MOEDAS: <span id="menu-coins" class="font-game text-amber-400 text-xs md:text-sm">0</span> 🪙</div>
+      </div>
+    </div>
+
+    <!-- WEAPONS SHOP MODAL -->
+    <div id="shop-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-40 p-4 md:p-6 flex flex-col justify-between">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🛒</span>
+          <div>
+            <h2 class="font-game text-xl md:text-2xl text-amber-400">LOJA DE ARMAS & ARSENAL</h2>
+            <p class="text-[10px] md:text-xs text-slate-400">Adquira armas permanentemente usando moedas de abates</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="bg-slate-900 px-4 py-2 rounded-2xl border border-amber-500/40 font-game text-amber-300 text-sm md:text-lg shadow-lg">
+            🪙 <span id="shop-coins-val">0</span>
+          </div>
+          <button id="btn-close-shop" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl text-white font-game text-sm transition">✕ FECHAR</button>
+        </div>
+      </div>
+
+      <!-- Shop Grid -->
+      <div id="shop-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 my-4 overflow-y-auto max-h-[360px] p-1">
+        <!-- Dynamically injected via JS -->
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 text-center text-[10px] md:text-xs text-slate-500">
+        Armas desbloqueadas ficam disponíveis permanentemente em todas as futuras partidas.
+      </div>
+    </div>
+
+    <!-- ACHIEVEMENTS MODAL -->
+    <div id="achievements-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-40 p-4 md:p-6 flex flex-col justify-between">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🏆</span>
+          <div>
+            <h2 class="font-game text-xl md:text-2xl text-purple-400">CONQUISTAS E RECOMPENSAS</h2>
+            <p class="text-[10px] md:text-xs text-slate-400">Cumpra os desafios para acumular recompensas extras</p>
+          </div>
+        </div>
+        <button id="btn-close-achievements" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl text-white font-game text-sm transition">✕ FECHAR</button>
+      </div>
+
+      <div id="achievements-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 my-4 overflow-y-auto max-h-[360px] p-1">
+        <!-- Dynamically injected via JS -->
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 text-center text-[10px] md:text-xs text-slate-500">
+        Progresso de conquistas é salvo automaticamente em seu dispositivo.
+      </div>
+    </div>
+
+    <!-- ROGUELIKE CARD SELECTION MODAL -->
+    <div id="card-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-lg z-40 p-4 md:p-6 flex flex-col items-center justify-center text-center">
+      <div class="mb-1 text-cyan-400 font-game text-sm md:text-lg tracking-widest animate-bounce">⚡ LEVEL UP / EVOLUÇÃO ⚡</div>
+      <h2 class="font-game text-2xl md:text-4xl text-white mb-1">ESCOLHA UMA MELHORIA</h2>
+      <p class="text-[10px] md:text-sm text-slate-400 mb-4 md:mb-6 max-w-md">Selecione uma carta para forjar a sinergia perfeita nesta partida.</p>
+
+      <!-- 3 Upgrade Cards Container Grid -->
+      <div id="cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 w-full max-w-5xl max-h-[68vh] overflow-y-auto p-1">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
+    <!-- BOSS INTRO WARNING BANNER -->
+    <div id="boss-warning-banner" class="hidden pointer-events-none absolute inset-x-0 top-1/3 bg-red-600/90 text-white py-4 font-game text-2xl md:text-5xl text-center tracking-widest shadow-2xl border-y-4 border-yellow-400 z-30 animate-pulse">
+      ⚠️ ALERTA DE CHEFE MUTANTE! ⚠️
+    </div>
+
+    <!-- PAUSE MENU OVERLAY -->
+    <div id="pause-modal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center">
+      <h2 class="font-game text-3xl md:text-5xl text-yellow-400 mb-6">JOGO PAUSADO</h2>
+      <div class="flex flex-col gap-3.5 w-60 md:w-72">
+        <button id="btn-resume" class="font-game py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl shadow-lg transition">CONTINUAR</button>
+        <button id="btn-restart" class="font-game py-3.5 bg-slate-700 hover:bg-slate-600 text-white rounded-2xl shadow-lg transition">REINICIAR PARTIDA</button>
+        <button id="btn-quit" class="font-game py-3.5 bg-red-950/80 border border-red-800 hover:bg-red-900 text-red-200 rounded-2xl shadow-lg transition">MENU PRINCIPAL</button>
+      </div>
+    </div>
+
+    <!-- GAME OVER OVERLAY -->
+    <div id="gameover-modal" class="hidden absolute inset-0 bg-red-950/95 backdrop-blur-lg z-40 flex flex-col items-center justify-center p-6 text-center">
+      <span class="text-6xl md:text-7xl mb-1">💀</span>
+      <h2 class="font-game text-3xl md:text-6xl text-red-500 mb-1">FIM DE JOGO</h2>
+      <p class="text-slate-300 text-xs md:text-sm mb-6">Você sucumbiu aos patos mutantes!</p>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 md:p-6 w-full max-w-lg mb-6 grid grid-cols-2 gap-4 text-left shadow-2xl">
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase font-bold">Fase Alcançada</div>
+          <div id="go-stage" class="font-game text-lg md:text-2xl text-yellow-400">1</div>
+        </div>
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase font-bold">Patos Abatidos</div>
+          <div id="go-kills" class="font-game text-lg md:text-2xl text-cyan-400">0</div>
+        </div>
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase font-bold">Moedas Coletadas</div>
+          <div id="go-coins" class="font-game text-lg md:text-2xl text-amber-400">0</div>
+        </div>
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase font-bold">Chefes Derrotados</div>
+          <div id="go-bosses" class="font-game text-lg md:text-2xl text-purple-400">0</div>
+        </div>
+      </div>
+
+      <button id="btn-retry" class="font-game py-4 px-10 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white text-lg rounded-2xl shadow-2xl transition">
+        JOGAR NOVAMENTE
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. SOUND SYNTHESIZER ENGINE (100% Web Audio API - Retro Chiptune & SFX)
+       =====================================
